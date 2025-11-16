@@ -36799,7 +36799,7 @@ ${content}
     if (this.ai && Math.random() < this.settings.randomCommentProbability) {
       const lines = currentContent.split("\n");
       const endLine = cursor.line;
-      const startLine = Math.max(0, endLine - 4);
+      const startLine = Math.max(0, endLine - 2);
       const contextContent = lines.slice(startLine, endLine + 1).join("\n").trim();
       const currentStatus = this.statusBarItemEl.getText();
       if (contextContent && !currentStatus.includes("\u8BC4\u8BBA") && !currentStatus.includes("\u601D\u8003")) {
@@ -36809,7 +36809,7 @@ ${content}
           this.updateStatusBar(`${this.settings.companionName} (\u8BC4\u8BBA): ${comment}`);
           setTimeout(() => {
             this.updateStatusBar(`${this.settings.companionName}: \u5F85\u547D\u4E2D...`);
-          }, 5e3);
+          }, 1e4);
         }, 100);
       }
     }

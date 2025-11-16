@@ -325,10 +325,10 @@ export default class MyAiCompanionPlugin extends Plugin {
 		// 5. 只有在 AI 客户端可用，并且 *通过了回车检测* 后，才进行随机概率判定
 		if (this.ai && Math.random() < this.settings.randomCommentProbability) {
 			
-			// 6. 提取上下文：获取光标前的 5 行内容
+			// 6. 提取上下文：获取光标前的 3 行内容
         	const lines = currentContent.split('\n');
         	const endLine = cursor.line; // 使用当前光标行
-        	const startLine = Math.max(0, endLine - 4); // 获取光标前最多 5 行
+        	const startLine = Math.max(0, endLine - 2); // 获取光标前最多 3 行
 			
 			const contextContent = lines.slice(startLine, endLine + 1).join('\n').trim();
 			
@@ -350,7 +350,7 @@ export default class MyAiCompanionPlugin extends Plugin {
 					// 评论显示一段时间后恢复待命状态
 					setTimeout(() => {
 						this.updateStatusBar(`${this.settings.companionName}: 待命中...`);
-					}, 5000); // 评论显示 5 秒
+					}, 10000); // 评论显示 5 秒
 				}, 100); 
 			}
 		}
