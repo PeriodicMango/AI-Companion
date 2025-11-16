@@ -1,0 +1,2 @@
+# my ai companion plugin
+
