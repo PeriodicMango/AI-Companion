@@ -42,6 +42,7 @@ export default class MyAiCompanionPlugin extends Plugin {
 	chatHistory: Content[] = []; // 聊天历史，用于侧边栏多轮对话
 	companionChat: Chat | null = null; // Gemini Chat 实例
 	lastTextLength: number = 0; // 用于跟踪文档长度变化
+	lastCursorLine: number = 0; // 用于跟踪光标最后所在的行
 
 	// === 1. 插件加载时调用（初始化） ===
 	async onload() {
@@ -50,7 +51,6 @@ export default class MyAiCompanionPlugin extends Plugin {
 
 		// 注册设置面板
 		this.addSettingTab(new MySettingTab(this.app, this));
-		this.loadExternalCSS();
 
 		this.initializeGeminiClient(); // 初始化 Gemini 客户端
 		this.initializeChatClient();
@@ -97,6 +97,7 @@ export default class MyAiCompanionPlugin extends Plugin {
         	const activeEditor = this.app.workspace.activeEditor;
         	if (activeEditor) {
             	this.lastTextLength = activeEditor.editor?.getValue().length || 0;
+				this.lastCursorLine = activeEditor.editor?.getCursor().line || 0;
         	}
     	});
 	}
@@ -119,14 +120,6 @@ export default class MyAiCompanionPlugin extends Plugin {
 
 		this.app.workspace.revealLeaf(leaf);
 	}
-
-	loadExternalCSS() {
-		const link = document.createElement('link');
-		link.rel = 'stylesheet';
-		link.type = 'text/css';
-		link.href = this.app.vault.adapter.getResourcePath('plugins/my-ai-companion-plugin/styles.css');
-		document.head.appendChild(link);
-	}	
 
 	// === 2. 插件卸载时调用（清理） ===
 	onunload() {
@@ -276,38 +269,52 @@ export default class MyAiCompanionPlugin extends Plugin {
 
 	// b) 随机评论触发器
 	handleEditorChange(editor: Editor) {
-		// 1. 获取当前文档的完整内容和光标位置
+		// 1. 获取当前状态
 		const currentContent = editor.getValue();
+		const currentLength = currentContent.length;
 		const cursor = editor.getCursor();
+        const currentLine = cursor.line;
 
-		// 2. 检查是否满足随机概率，并且是否是大变化（暗示回车或粘贴）
-		this.lastTextLength = currentContent.length;	
+		// 2. 核心检查：判断是否是“回车”
+		// 我们通过“光标行号增加了”并且“总文本长度也增加了”
+		// 来判断这是一个(正向的)换行操作
+		const isEnterPress = currentLine > this.lastCursorLine && currentLength > this.lastTextLength;
 
-		// 只有在 AI 客户端可用时才尝试触发评论
+		// 3. 无论是否触发，都必须更新“上一次”的状态
+		this.lastTextLength = currentLength;
+		this.lastCursorLine = currentLine;
+
+		// 4. 如果不是回车，则立即停止，不进行任何操作
+		if (!isEnterPress) {
+			return;
+		}
+
+		// 5. 只有在 AI 客户端可用，并且 *通过了回车检测* 后，才进行随机概率判定
 		if (this.ai && Math.random() < this.settings.randomCommentProbability) {
-			// 3. 提取上下文：获取光标前的 5 行内容作为 AI 的输入
+			
+			// 6. 提取上下文：获取光标前的 5 行内容
         	const lines = currentContent.split('\n');
-        	const endLine = cursor.line;
+        	const endLine = cursor.line; // 使用当前光标行
         	const startLine = Math.max(0, endLine - 4); // 获取光标前最多 5 行
 			
-			const contextContent = lines.slice(startLine, endLine + 1).join('\n').trim(); // 获取这部分内容
+			const contextContent = lines.slice(startLine, endLine + 1).join('\n').trim();
 			
-			// 确保提取的内容不为空，且不是正在等待回复
+			// 7. 确保提取的内容不为空，且不是正在等待回复
 			const currentStatus = this.statusBarItemEl.getText();
 			if (contextContent && !currentStatus.includes('评论') && !currentStatus.includes('思考')) {
 				
-				// 为了防止过于频繁，设置一个延迟
+				// 8. 设置延迟
 				setTimeout(async () => {
-					// 4. 临时更新状态栏，表示正在思考/发送
+					// 临时更新状态栏，表示正在思考/发送
 					this.updateStatusBar(`${this.settings.companionName}: 思考中...`);
 					
-					// 5. 调用新的 getAiResponse 函数，传入上下文
+					// 调用 AI
 					const comment = await this.getAiResponse('comment', contextContent);
 					
-					// 6. 显示评论
+					// 显示评论
 					this.updateStatusBar(`${this.settings.companionName} (评论): ${comment}`);
 					
-					// 7. 评论显示一段时间后恢复待命状态
+					// 评论显示一段时间后恢复待命状态
 					setTimeout(() => {
 						this.updateStatusBar(`${this.settings.companionName}: 待命中...`);
 					}, 5000); // 评论显示 5 秒

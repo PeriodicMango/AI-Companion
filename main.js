@@ -36586,13 +36586,14 @@ var MyAiCompanionPlugin = class extends import_obsidian2.Plugin {
     this.companionChat = null;
     // Gemini Chat 实例
     this.lastTextLength = 0;
+    // 用于跟踪文档长度变化
+    this.lastCursorLine = 0;
   }
-  // 用于跟踪文档长度变化
+  // 用于跟踪光标最后所在的行
   // === 1. 插件加载时调用（初始化） ===
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new MySettingTab(this.app, this));
-    this.loadExternalCSS();
     this.initializeGeminiClient();
     this.initializeChatClient();
     this.statusBarItemEl = this.addStatusBarItem();
@@ -36626,6 +36627,7 @@ var MyAiCompanionPlugin = class extends import_obsidian2.Plugin {
       const activeEditor = this.app.workspace.activeEditor;
       if (activeEditor) {
         this.lastTextLength = activeEditor.editor?.getValue().length || 0;
+        this.lastCursorLine = activeEditor.editor?.getCursor().line || 0;
       }
     });
   }
@@ -36642,13 +36644,6 @@ var MyAiCompanionPlugin = class extends import_obsidian2.Plugin {
       active: true
     });
     this.app.workspace.revealLeaf(leaf);
-  }
-  loadExternalCSS() {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.type = "text/css";
-    link.href = this.app.vault.adapter.getResourcePath("plugins/my-ai-companion-plugin/styles.css");
-    document.head.appendChild(link);
   }
   // === 2. 插件卸载时调用（清理） ===
   onunload() {
@@ -36762,8 +36757,15 @@ ${content}
   // b) 随机评论触发器
   handleEditorChange(editor) {
     const currentContent = editor.getValue();
+    const currentLength = currentContent.length;
     const cursor = editor.getCursor();
-    this.lastTextLength = currentContent.length;
+    const currentLine = cursor.line;
+    const isEnterPress = currentLine > this.lastCursorLine && currentLength > this.lastTextLength;
+    this.lastTextLength = currentLength;
+    this.lastCursorLine = currentLine;
+    if (!isEnterPress) {
+      return;
+    }
     if (this.ai && Math.random() < this.settings.randomCommentProbability) {
       const lines = currentContent.split("\n");
       const endLine = cursor.line;
