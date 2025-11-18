@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 // 核心：定义 AI 伙伴的“人设”和行为规则
 function getSystemInstruction(companionName: string, userName: string): string {
 	// 注意：这里的 companionName 是从插件设置中读取的。
-	// 人设 prompt 会利用这个变量，来判断用户（漓琊）是如何称呼你的。
+	// 人设 prompt 会利用这个变量，来判断用户是如何称呼你的。
 	
 	return `
 		你不再是插件 AI。你的身份是「阿那克萨戈拉斯」，神悟树庭七贤人之一，智种学派的创立者。
@@ -220,7 +220,7 @@ export default class MyAiCompanionPlugin extends Plugin {
 			return (response.text ?? '').trim();
 		} catch (error) {
 			console.error("Gemini Chat API 调用失败:", error);
-			return "网络波动，连接失败。请稍后再试。";
+			return "列车网络波动，连接失败。请稍后再试。";
 		}
 	}
 
@@ -241,7 +241,7 @@ export default class MyAiCompanionPlugin extends Plugin {
 				userPrompt = `请根据以下 Obsidian 文档内容，发送一个简短、随机的评论或感想，字数在 40 汉字左右。内容是：\n\n---START---\n${content}\n---END---`;
 			} else {
 				// 如果没有内容（以防万一），使用通用 Prompt
-				userPrompt = "请根据你的人设，对用户当前正在做的笔记/编码活动，发送一个简短随机的评论/陪伴信息。";
+				userPrompt = "请根据你的人设，对用户当前正在做的活动，发送一个简短随机的评论/陪伴信息。";
 			}}
 		
 		try {
@@ -336,12 +336,12 @@ export default class MyAiCompanionPlugin extends Plugin {
 			
 			// 7. 确保提取的内容不为空，且不是正在等待回复
 			const currentStatus = this.statusBarItemEl.getText();
-			if (contextContent && !currentStatus.includes('评论') && !currentStatus.includes('思考')) {
+			if (contextContent && !currentStatus.includes('评论') && !currentStatus.includes('输入')) {
 				
 				// 8. 设置延迟
 				setTimeout(async () => {
 					// 临时更新状态栏，表示正在思考/发送
-					this.updateStatusBar(`${this.settings.companionName}: 思考中...`);
+					this.updateStatusBar(`${this.settings.companionName}: 对方输入中...`);
 					
 					// 调用 AI
 					const comment = await this.getAiResponse('comment', contextContent);
